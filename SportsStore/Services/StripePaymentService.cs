@@ -7,9 +7,10 @@ namespace SportsStore.Services {
         private readonly ILogger<StripePaymentService> logger;
 
         public StripePaymentService(IConfiguration config, ILogger<StripePaymentService> logger) {
-            var secretKey = config["Stripe:SecretKey"]
-                ?? throw new InvalidOperationException(
-                    "Stripe:SecretKey is not configured. Use user-secrets or an environment variable.");
+            var secretKey = config["Stripe:SecretKey"];
+            if (string.IsNullOrWhiteSpace(secretKey))
+                throw new InvalidOperationException(
+                    "Stripe:SecretKey is not configured. Set it via dotnet user-secrets.");
             stripeClient = new StripeClient(secretKey);
             this.logger = logger;
         }

@@ -14,6 +14,7 @@ namespace SportsStore.Controllers {
         private readonly Cart cart;
         private readonly IPaymentService paymentService;
         private readonly string publishableKey;
+        private readonly bool useMock;
         private readonly ILogger<OrderController> logger;
 
         public OrderController(
@@ -25,9 +26,11 @@ namespace SportsStore.Controllers {
             repository = repoService;
             cart = cartService;
             paymentService = paymentSvc;
-            publishableKey = config["Stripe:PublishableKey"]
-                ?? throw new InvalidOperationException(
-                    "Stripe:PublishableKey is not configured.");
+            publishableKey = config["Stripe:PublishableKey"];
+            if (string.IsNullOrWhiteSpace(publishableKey))
+                throw new InvalidOperationException(
+                    "Stripe:PublishableKey is not configured. Set it via dotnet user-secrets.");
+            useMock = config.GetValue<bool>("Stripe:UseMock");
             logger = loggerService;
         }
 
@@ -74,7 +77,8 @@ namespace SportsStore.Controllers {
                 return View("Payment", new PaymentViewModel {
                     ClientSecret = intent.ClientSecret,
                     PublishableKey = publishableKey,
-                    Amount = total
+                    Amount = total,
+                    IsMock = useMock
                 });
             }
             catch (StripeException ex) {
@@ -162,6 +166,29 @@ namespace SportsStore.Controllers {
             logger.LogWarning("PaymentFailed page displayed. Error: {PaymentError}",
                 TempData["PaymentError"]);
             return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ConfirmMockPayment() {
+            var order = HttpContext.Session.GetJson<Order>(PendingOrderKey);
+            if (order is null) {
+                logger.LogWarning("[MOCK] ConfirmMockPayment called but no pending order in session");
+                return RedirectToAction(nameof(Checkout));
+            }
+
+            order.Lines = cart.Lines.ToArray();
+            order.PaymentStatus = "succeeded";
+
+            repository.SaveOrder(order);
+            cart.Clear();
+            HttpContext.Session.Remove(PendingOrderKey);
+
+            logger.LogInformation(
+                "[MOCK] Order {OrderId} saved for {CustomerName} — {ItemCount} line(s)",
+                order.OrderID, order.Name, order.Lines.Count);
+
+            return RedirectToPage("/Completed", new { orderId = order.OrderID });
         }
     }
 }
