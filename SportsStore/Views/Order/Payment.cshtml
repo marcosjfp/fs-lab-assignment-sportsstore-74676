@@ -1,0 +1,38 @@
+@model SportsStore.Models.ViewModels.PaymentViewModel
+
+<h2>Complete Your Payment</h2>
+<p class="lead">Order #@Model.OrderId &mdash; Amount due: <strong>@Model.Amount.ToString("C")</strong></p>
+
+<div id="payment-element" class="mb-3"></div>
+<div id="payment-message" class="text-danger mb-2" style="display:none;"></div>
+<button id="submit-btn" class="btn btn-primary">Pay Now</button>
+<a asp-action="Checkout" class="btn btn-secondary ms-2">Cancel</a>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    (function () {
+        var stripe = Stripe("@Model.PublishableKey");
+        var elements = stripe.elements({ clientSecret: "@Model.ClientSecret" });
+        var paymentElement = elements.create("payment");
+        paymentElement.mount("#payment-element");
+
+        document.getElementById("submit-btn").addEventListener("click", async function () {
+            var btn = document.getElementById("submit-btn");
+            var msg = document.getElementById("payment-message");
+            btn.disabled = true;
+            msg.style.display = "none";
+
+            var result = await stripe.confirmPayment({
+                elements: elements,
+                confirmParams: { return_url: "@Model.ReturnUrl" }
+            });
+
+            if (result.error) {
+                msg.textContent = result.error.message;
+                msg.style.display = "block";
+                btn.disabled = false;
+            }
+        });
+    })();
+</script>
+

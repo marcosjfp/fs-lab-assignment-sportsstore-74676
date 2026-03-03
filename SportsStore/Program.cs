@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using SportsStore.Models;
 
 using Microsoft.AspNetCore.Identity;
+using SportsStore.Infrastructure;
+using SportsStore.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,7 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession();
 builder.Services.AddScoped<Cart>(sp => SessionCart.GetCart(sp));
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddServerSideBlazor();
 
 builder.Services.AddDbContext<AppIdentityDbContext>(options =>
@@ -43,6 +46,7 @@ app.UseRequestLocalization(opts => {
 
 app.UseStaticFiles();
 app.UseSession();
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
