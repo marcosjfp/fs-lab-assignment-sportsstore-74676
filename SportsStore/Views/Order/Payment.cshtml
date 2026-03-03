@@ -1,0 +1,71 @@
+@model SportsStore.Models.ViewModels.PaymentViewModel
+
+<h2>Complete Your Payment</h2>
+<p class="text-muted">
+    Order total: <strong>@Model.Amount.ToString("c")</strong>
+</p>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <form id="payment-form">
+            <div id="payment-element" class="mb-3"></div>
+
+            <div id="payment-errors" class="alert alert-danger d-none" role="alert"></div>
+
+            <div class="d-grid mt-3">
+                <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">
+                    <span id="button-text">Pay @Model.Amount.ToString("c")</span>
+                    <span id="spinner"
+                          class="d-none spinner-border spinner-border-sm ms-2"
+                          role="status"
+                          aria-hidden="true"></span>
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-3">
+            <a asp-action="Checkout" class="text-muted small">← Back to shipping details</a>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    (function () {
+        const stripe = Stripe('@Model.PublishableKey');
+        const elements = stripe.elements({ clientSecret: '@Model.ClientSecret' });
+        const paymentElement = elements.create('payment');
+        paymentElement.mount('#payment-element');
+
+        const form = document.getElementById('payment-form');
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            setLoading(true);
+
+            const { error } = await stripe.confirmPayment({
+                elements,
+                confirmParams: {
+                    return_url: window.location.origin + '/Order/PaymentReturn'
+                }
+            });
+
+            if (error) {
+                const errorEl = document.getElementById('payment-errors');
+                errorEl.textContent = error.message;
+                errorEl.classList.remove('d-none');
+                setLoading(false);
+            }
+        });
+
+        function setLoading(isLoading) {
+            const btn = document.getElementById('submit-btn');
+            const spinner = document.getElementById('spinner');
+            const text = document.getElementById('button-text');
+            btn.disabled = isLoading;
+            spinner.classList.toggle('d-none', !isLoading);
+            text.classList.toggle('d-none', isLoading);
+        }
+    })();
+</script>
+}

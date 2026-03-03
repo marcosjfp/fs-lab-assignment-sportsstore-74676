@@ -1,0 +1,18 @@
+@{
+    var errorMessage = TempData["PaymentError"] as string
+        ?? "Your payment could not be processed.";
+}
+
+<div class="text-center">
+    <h2 class="text-danger">Payment Unsuccessful</h2>
+    <p class="lead">@errorMessage</p>
+    <p class="text-muted">
+        Your cart has been preserved. You can review your items and try again.
+    </p>
+    <div class="mt-4">
+        <a asp-action="Checkout" class="btn btn-primary me-2">Try Again</a>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+            Return to Store
+        </a>
+    </div>
+</div>
