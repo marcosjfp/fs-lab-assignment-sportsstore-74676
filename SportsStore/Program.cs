@@ -33,7 +33,11 @@ try
 
     builder.Services.AddScoped<IStoreRepository, EFStoreRepository>();
     builder.Services.AddScoped<IOrderRepository, EFOrderRepository>();
-    builder.Services.AddScoped<IPaymentService, StripePaymentService>();
+
+    if (builder.Configuration.GetValue<bool>("Stripe:UseMock"))
+        builder.Services.AddScoped<IPaymentService, MockPaymentService>();
+    else
+        builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 
     builder.Services.AddRazorPages();
     builder.Services.AddDistributedMemoryCache();
