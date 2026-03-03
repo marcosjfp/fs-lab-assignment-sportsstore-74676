@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (.NET 10)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: "11 - SportsStore - 5/End of Chapter/SportsSln"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run tests
+        run: >
+          dotnet test
+          --no-build
+          --configuration Release
+          --verbosity normal
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "11 - SportsStore - 5/End of Chapter/SportsSln/TestResults"
+          retention-days: 7
