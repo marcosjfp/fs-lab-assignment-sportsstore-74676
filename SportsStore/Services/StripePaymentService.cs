@@ -15,7 +15,7 @@ namespace SportsStore.Services {
         }
 
         public async Task<PaymentIntentResult> CreatePaymentIntentAsync(
-            decimal amount, string currency = "usd") {
+            decimal amount, string currency = "eur") {
 
             var options = new PaymentIntentCreateOptions {
                 Amount = (long)(amount * 100),
