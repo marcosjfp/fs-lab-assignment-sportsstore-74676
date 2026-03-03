@@ -11,10 +11,6 @@ jobs:
     name: Build & Test (.NET 10)
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: "11 - SportsStore - 5/End of Chapter/SportsSln"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,14 +29,17 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore SportsStore.Tests/SportsStore.Tests.csproj
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: >
+          dotnet build SportsStore.Tests/SportsStore.Tests.csproj
+          --no-restore
+          --configuration Release
 
       - name: Run tests
         run: >
-          dotnet test
+          dotnet test SportsStore.Tests/SportsStore.Tests.csproj
           --no-build
           --configuration Release
           --verbosity normal
@@ -52,5 +51,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: "11 - SportsStore - 5/End of Chapter/SportsSln/TestResults"
+          path: TestResults
           retention-days: 7
