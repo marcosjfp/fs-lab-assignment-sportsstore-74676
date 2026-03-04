@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SportsStore.Controllers;
 using SportsStore.Models;
@@ -17,13 +18,14 @@ namespace SportsStore.Tests {
             Mock<IOrderRepository> mock = new Mock<IOrderRepository>();
             Mock<IPaymentService> mockPayment = new Mock<IPaymentService>();
             Mock<IConfiguration> mockConfig = new Mock<IConfiguration>();
+            Mock<ILogger<OrderController>> mockLogger = new Mock<ILogger<OrderController>>();
             // Arrange - create an empty cart
             Cart cart = new Cart();
             // Arrange - create the order
             Order order = new Order();
             // Arrange - create an instance of the controller
             OrderController target = new OrderController(mock.Object, cart,
-                mockPayment.Object, mockConfig.Object);
+                mockPayment.Object, mockConfig.Object, mockLogger.Object);
 
             // Act
             ViewResult? result = (await target.Checkout(order)) as ViewResult;
@@ -43,12 +45,13 @@ namespace SportsStore.Tests {
             Mock<IOrderRepository> mock = new Mock<IOrderRepository>();
             Mock<IPaymentService> mockPayment = new Mock<IPaymentService>();
             Mock<IConfiguration> mockConfig = new Mock<IConfiguration>();
+            Mock<ILogger<OrderController>> mockLogger = new Mock<ILogger<OrderController>>();
             // Arrange - create a cart with one item
             Cart cart = new Cart();
             cart.AddItem(new Product(), 1);
             // Arrange - create an instance of the controller
             OrderController target = new OrderController(mock.Object, cart,
-                mockPayment.Object, mockConfig.Object);
+                mockPayment.Object, mockConfig.Object, mockLogger.Object);
             // Arrange - add an error to the model
             target.ModelState.AddModelError("error", "error");
 
@@ -69,6 +72,7 @@ namespace SportsStore.Tests {
             Mock<IOrderRepository> mock = new Mock<IOrderRepository>();
             Mock<IPaymentService> mockPayment = new Mock<IPaymentService>();
             Mock<IConfiguration> mockConfig = new Mock<IConfiguration>();
+            Mock<ILogger<OrderController>> mockLogger = new Mock<ILogger<OrderController>>();
             mockPayment
                 .Setup(p => p.CreatePaymentIntentAsync(It.IsAny<decimal>(), It.IsAny<string>()))
                 .ReturnsAsync(new PaymentIntentResult("pi_test_id", "pi_test_secret"));
@@ -77,7 +81,7 @@ namespace SportsStore.Tests {
             cart.AddItem(new Product { Price = 10 }, 1);
             // Arrange - create an instance of the controller
             OrderController target = new OrderController(mock.Object, cart,
-                mockPayment.Object, mockConfig.Object);
+                mockPayment.Object, mockConfig.Object, mockLogger.Object);
 
             // Act - try to checkout
             RedirectToActionResult? result =
