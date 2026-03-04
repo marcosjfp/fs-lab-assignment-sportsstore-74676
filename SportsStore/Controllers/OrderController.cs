@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SportsStore.Infrastructure;
 using SportsStore.Models;
 using SportsStore.Models.ViewModels;
@@ -138,6 +138,47 @@ namespace SportsStore.Controllers {
                 order.PaymentStatus = "succeeded";
 
                 repository.SaveOrder(order);
+
+                PaymentIntentResult intent =
+                    await paymentService.CreatePaymentIntentAsync(cart.ComputeTotalValue());
+
+                order.PaymentIntentId = intent.PaymentIntentId;
+                order.PaymentClientSecret = intent.ClientSecret;
+                repository.SaveOrder(order);
+
+                return RedirectToAction("Payment", new { orderId = order.OrderID });
+            }
+            return View();
+        }
+
+        public IActionResult Payment(int orderId) {
+            Order? order = repository.Orders.FirstOrDefault(o => o.OrderID == orderId);
+            if (order == null || string.IsNullOrEmpty(order.PaymentClientSecret))
+                return RedirectToAction("Checkout");
+
+            var vm = new PaymentViewModel {
+                OrderId = orderId,
+                ClientSecret = order.PaymentClientSecret,
+                PublishableKey = config["Stripe:PublishableKey"] ?? string.Empty,
+                Amount = order.Lines.Sum(l => l.Product.Price * l.Quantity),
+                ReturnUrl = Url.Action("PaymentReturn", "Order",
+                    new { orderId }, Request.Scheme)!
+            };
+            return View(vm);
+        }
+
+        public async Task<IActionResult> PaymentReturn(int orderId, string? payment_intent) {
+            if (string.IsNullOrEmpty(payment_intent))
+                return RedirectToAction("Checkout");
+
+            Order? order = repository.Orders.FirstOrDefault(o => o.OrderID == orderId);
+            if (order == null) return NotFound();
+
+            string status = await paymentService.GetPaymentStatusAsync(payment_intent);
+            order.PaymentStatus = status;
+            repository.SaveOrder(order);
+
+            if (status == "succeeded") {
                 cart.Clear();
                 HttpContext.Session.Remove(PendingOrderKey);
 
