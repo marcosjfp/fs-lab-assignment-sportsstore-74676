@@ -138,57 +138,6 @@ namespace SportsStore.Controllers {
                 order.PaymentStatus = "succeeded";
 
                 repository.SaveOrder(order);
-
-            try {
-                PaymentIntentResult intent =
-                    await paymentService.CreatePaymentIntentAsync(cart.ComputeTotalValue());
-
-                order.PaymentIntentId = intent.PaymentIntentId;
-                order.PaymentClientSecret = intent.ClientSecret;
-                repository.SaveOrder(order);
-
-                logger.LogInformation(
-                    "PaymentIntent {PaymentIntentId} attached to Order {OrderId}",
-                    order.PaymentIntentId, order.OrderID);
-
-                return RedirectToAction("Payment", new { orderId = order.OrderID });
-            } catch (Exception ex) {
-                logger.LogError(ex,
-                    "Failed to create PaymentIntent for Order {OrderId}", order.OrderID);
-                ModelState.AddModelError("", "Payment initialisation failed. Please try again.");
-                return View();
-            }
-        }
-
-        public IActionResult Payment(int orderId) {
-            Order? order = repository.Orders.FirstOrDefault(o => o.OrderID == orderId);
-            if (order == null || string.IsNullOrEmpty(order.PaymentClientSecret))
-                return RedirectToAction("Checkout");
-
-            var vm = new PaymentViewModel {
-                OrderId = orderId,
-                ClientSecret = order.PaymentClientSecret,
-                PublishableKey = config["Stripe:PublishableKey"] ?? string.Empty,
-                Amount = order.Lines.Sum(l => l.Product.Price * l.Quantity),
-                ReturnUrl = Url.Action("PaymentReturn", "Order",
-                    new { orderId }, Request.Scheme)!
-            };
-            return View(vm);
-        }
-
-        public async Task<IActionResult> PaymentReturn(int orderId, string? payment_intent) {
-            if (string.IsNullOrEmpty(payment_intent))
-                return RedirectToAction("Checkout");
-
-            Order? order = repository.Orders.FirstOrDefault(o => o.OrderID == orderId);
-            if (order == null) return NotFound();
-
-            try {
-                string status = await paymentService.GetPaymentStatusAsync(payment_intent);
-                order.PaymentStatus = status;
-                repository.SaveOrder(order);
-
-            if (status == "succeeded") {
                 cart.Clear();
                 HttpContext.Session.Remove(PendingOrderKey);
 
