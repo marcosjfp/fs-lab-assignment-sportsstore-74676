@@ -139,6 +139,7 @@ namespace SportsStore.Controllers {
 
                 repository.SaveOrder(order);
 
+            try {
                 PaymentIntentResult intent =
                     await paymentService.CreatePaymentIntentAsync(cart.ComputeTotalValue());
 
@@ -146,9 +147,17 @@ namespace SportsStore.Controllers {
                 order.PaymentClientSecret = intent.ClientSecret;
                 repository.SaveOrder(order);
 
+                logger.LogInformation(
+                    "PaymentIntent {PaymentIntentId} attached to Order {OrderId}",
+                    order.PaymentIntentId, order.OrderID);
+
                 return RedirectToAction("Payment", new { orderId = order.OrderID });
+            } catch (Exception ex) {
+                logger.LogError(ex,
+                    "Failed to create PaymentIntent for Order {OrderId}", order.OrderID);
+                ModelState.AddModelError("", "Payment initialisation failed. Please try again.");
+                return View();
             }
-            return View();
         }
 
         public IActionResult Payment(int orderId) {
@@ -174,9 +183,10 @@ namespace SportsStore.Controllers {
             Order? order = repository.Orders.FirstOrDefault(o => o.OrderID == orderId);
             if (order == null) return NotFound();
 
-            string status = await paymentService.GetPaymentStatusAsync(payment_intent);
-            order.PaymentStatus = status;
-            repository.SaveOrder(order);
+            try {
+                string status = await paymentService.GetPaymentStatusAsync(payment_intent);
+                order.PaymentStatus = status;
+                repository.SaveOrder(order);
 
             if (status == "succeeded") {
                 cart.Clear();
