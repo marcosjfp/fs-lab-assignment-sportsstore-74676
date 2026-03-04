@@ -1,71 +1,80 @@
-using Microsoft.EntityFrameworkCore;
-using SportsStore.Models;
-
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
-using Serilog.Events;
 using SportsStore.Infrastructure;
+using SportsStore.Models;
 using SportsStore.Services;
 
+// ── Bootstrap logger (captures failures during host startup) ──────────────────
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
-try {
+try
+{
     Log.Information("Starting SportsStore application");
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, services, loggerConfig) =>
-        loggerConfig
+    // ── Replace default logging with Serilog, reading from appsettings ─────────
+    builder.Host.UseSerilog((context, services, configuration) =>
+        configuration
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext());
 
+    // ── Services ───────────────────────────────────────────────────────────────
     builder.Services.AddControllersWithViews();
 
-    builder.Services.AddDbContext<StoreDbContext>(opts => {
-        opts.UseSqlServer(
-            builder.Configuration["ConnectionStrings:SportsStoreConnection"]);
-    });
+    builder.Services.AddDbContext<StoreDbContext>(opts =>
+        opts.UseSqlServer(builder.Configuration["ConnectionStrings:SportsStoreConnection"]));
 
     builder.Services.AddScoped<IStoreRepository, EFStoreRepository>();
     builder.Services.AddScoped<IOrderRepository, EFOrderRepository>();
+
+    if (builder.Configuration.GetValue<bool>("Stripe:UseMock"))
+        builder.Services.AddScoped<IPaymentService, MockPaymentService>();
+    else
+        builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 
     builder.Services.AddRazorPages();
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddSession();
     builder.Services.AddScoped<Cart>(sp => SessionCart.GetCart(sp));
     builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-    builder.Services.AddScoped<IPaymentService, StripePaymentService>();
     builder.Services.AddServerSideBlazor();
 
     builder.Services.AddDbContext<AppIdentityDbContext>(options =>
-        options.UseSqlServer(
-            builder.Configuration["ConnectionStrings:IdentityConnection"]));
+        options.UseSqlServer(builder.Configuration["ConnectionStrings:IdentityConnection"]));
 
     builder.Services.AddIdentity<IdentityUser, IdentityRole>()
         .AddEntityFrameworkStores<AppIdentityDbContext>();
 
+    // ── Pipeline ───────────────────────────────────────────────────────────────
     var app = builder.Build();
 
-    if (app.Environment.IsProduction()) {
+    if (app.Environment.IsProduction())
+    {
         app.UseExceptionHandler("/error");
     }
 
-    app.UseRequestLocalization(opts => {
+    app.UseRequestLocalization(opts =>
         opts.AddSupportedCultures("en-US")
-        .AddSupportedUICultures("en-US")
-        .SetDefaultCulture("en-US");
-    });
+            .AddSupportedUICultures("en-US")
+            .SetDefaultCulture("en-US"));
+
+    // Enriches every request log with HTTP details (method, path, status, elapsed)
+    app.UseSerilogRequestLogging(opts =>
+        opts.MessageTemplate =
+            "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms");
+
+    // Adds CorrelationId to every log within the request scope
+    app.UseMiddleware<CorrelationIdMiddleware>();
 
     app.UseStaticFiles();
     app.UseSession();
-    app.UseMiddleware<CorrelationIdMiddleware>();
-    app.UseSerilogRequestLogging();
-
     app.UseAuthentication();
     app.UseAuthorization();
 
@@ -79,8 +88,7 @@ try {
     app.MapControllerRoute("category", "{category}",
         new { Controller = "Home", action = "Index", productPage = 1 });
 
-    app.MapControllerRoute("pagination",
-        "Products/Page{productPage}",
+    app.MapControllerRoute("pagination", "Products/Page{productPage}",
         new { Controller = "Home", action = "Index", productPage = 1 });
 
     app.MapDefaultControllerRoute();
@@ -91,11 +99,16 @@ try {
     SeedData.EnsurePopulated(app);
     IdentitySeedData.EnsurePopulated(app);
 
-    Log.Information("SportsStore application started successfully");
-    app.Run();
+    Log.Information("SportsStore started successfully on {Environment}",
+        app.Environment.EnvironmentName);
 
-} catch (Exception ex) {
-    Log.Fatal(ex, "SportsStore application terminated unexpectedly");
-} finally {
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "SportsStore terminated unexpectedly");
+}
+finally
+{
     Log.CloseAndFlush();
 }

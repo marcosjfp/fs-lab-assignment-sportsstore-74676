@@ -1,18 +1,18 @@
-@model SportsStore.Models.Order
-
 @{
-    bool cancelled = Model.PaymentStatus == "canceled";
+    var errorMessage = TempData["PaymentError"] as string
+        ?? "Your payment could not be processed.";
 }
 
-<h2 class="text-danger">Payment @(cancelled ? "Cancelled" : "Failed")</h2>
-
-@if (cancelled) {
-    <p>Your payment was cancelled. You can try again below.</p>
-} else {
-    <p>Unfortunately your payment could not be processed. Please try a different card.</p>
-}
-
-<a asp-controller="Order" asp-action="Payment" asp-route-orderId="@Model.OrderID"
-   class="btn btn-primary">Try Again</a>
-<a asp-controller="Home" asp-action="Index" class="btn btn-secondary ms-2">Return to Store</a>
-
+<div class="text-center">
+    <h2 class="text-danger">Payment Unsuccessful</h2>
+    <p class="lead">@errorMessage</p>
+    <p class="text-muted">
+        Your cart has been preserved. You can review your items and try again.
+    </p>
+    <div class="mt-4">
+        <a asp-action="Checkout" class="btn btn-primary me-2">Try Again</a>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+            Return to Store
+        </a>
+    </div>
+</div>

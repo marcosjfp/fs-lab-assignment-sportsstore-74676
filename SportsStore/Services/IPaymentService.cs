@@ -7,4 +7,3 @@ namespace SportsStore.Services {
         Task<string> GetPaymentStatusAsync(string paymentIntentId);
     }
 }
-
