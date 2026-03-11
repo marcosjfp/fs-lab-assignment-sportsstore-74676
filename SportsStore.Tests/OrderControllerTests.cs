@@ -40,6 +40,10 @@ namespace SportsStore.Tests {
             var mockConfig = new Mock<IConfiguration>();
             mockConfig.Setup(c => c["Stripe:PublishableKey"]).Returns("pk_test_fake");
 
+            var mockSection = new Mock<IConfigurationSection>();
+            mockSection.Setup(s => s.Value).Returns("false");
+            mockConfig.Setup(c => c.GetSection("Stripe:UseMock")).Returns(mockSection.Object);
+
             var mockLogger = new Mock<ILogger<OrderController>>();
             var mockPayment = paymentService ?? new Mock<IPaymentService>().Object;
 
