@@ -65,7 +65,7 @@ namespace SportsStore.Controllers {
             try {
                 decimal total = cart.ComputeTotalValue();
                 PaymentIntentResult intent =
-                    await paymentService.CreatePaymentIntentAsync(total);
+                    await paymentService.CreatePaymentIntentAsync(total, publishableKey);
 
                 order.PaymentIntentId = intent.PaymentIntentId;
                 HttpContext.Session.SetJson(PendingOrderKey, order);
