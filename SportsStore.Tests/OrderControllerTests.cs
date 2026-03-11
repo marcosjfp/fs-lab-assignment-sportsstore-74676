@@ -37,14 +37,18 @@ namespace SportsStore.Tests {
             Cart cart,
             IPaymentService? paymentService = null) {
 
-            var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["Stripe:PublishableKey"]).Returns("pk_test_fake");
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> {
+                    ["Stripe:PublishableKey"] = "pk_test_fake",
+                    ["Stripe:UseMock"] = "true"
+                })
+                .Build();
 
             var mockLogger = new Mock<ILogger<OrderController>>();
             var mockPayment = paymentService ?? new Mock<IPaymentService>().Object;
 
             var controller = new OrderController(
-                repo, cart, mockPayment, mockConfig.Object, mockLogger.Object);
+                repo, cart, mockPayment, config, mockLogger.Object);
 
             var httpContext = new DefaultHttpContext();
             httpContext.Session = new FakeSession();
